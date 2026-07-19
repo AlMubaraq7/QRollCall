@@ -8,7 +8,6 @@ const pool = new Pool({
   user: env.db.user,
   password: env.db.password,
 });
-console.log(env.db.user, env.db.database);
 
 pool.on("connect", () => {
   console.log("Connected to PostgreSQL");

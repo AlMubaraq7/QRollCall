@@ -1,0 +1,57 @@
+import express from "express";
+import cors from "cors";
+import helmet from "helmet";
+import rateLimit from "express-rate-limit";
+import { env } from "./config/env.js";
+import authRoutes from "./modules/auth/auth.routes.js";
+import courseRoutes from "./modules/courses/courses.routes.js";
+
+const app = express();
+
+// Security middleware
+app.use(helmet());
+app.use(
+  cors({
+    origin: "http://localhost:3000", // your frontend URL
+    credentials: true,
+  }),
+);
+
+// Body parser
+app.use(express.json());
+
+// Rate limiter for auth routes (max 20 requests per 15 minutes per IP)
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 20,
+  message: {
+    success: false,
+    error: "Too many requests, please try again later",
+  },
+});
+
+// Routes
+app.use("/api/v1/auth", authLimiter, authRoutes);
+app.use("/api/v1/courses", courseRoutes);
+
+// Health check
+app.get("/health", (req, res) => {
+  res.json({ success: true, message: "Server is running" });
+});
+
+// 404 handler
+app.use((req, res) => {
+  res.status(404).json({ success: false, error: "Route not found" });
+});
+
+// Global error handler
+app.use((err, req, res, next) => {
+  console.error(err.stack);
+  res.status(500).json({ success: false, error: "Internal server error" });
+});
+
+app.listen(env.port, () => {
+  console.log(`Server running on http://localhost:${env.port}`);
+});
+
+export default app;
