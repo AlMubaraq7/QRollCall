@@ -5,6 +5,8 @@ import rateLimit from "express-rate-limit";
 import { env } from "./config/env.js";
 import authRoutes from "./modules/auth/auth.routes.js";
 import courseRoutes from "./modules/courses/courses.routes.js";
+import sessionRoutes from "./modules/sessions/sessions.routes.js";
+import deviceRoutes from "./modules/device/device.routes.js";
 
 const app = express();
 
@@ -33,6 +35,8 @@ const authLimiter = rateLimit({
 // Routes
 app.use("/api/v1/auth", authLimiter, authRoutes);
 app.use("/api/v1/courses", courseRoutes);
+app.use("/api/v1/sessions", sessionRoutes);
+app.use("/api/v1/device", deviceRoutes);
 
 // Health check
 app.get("/health", (req, res) => {
