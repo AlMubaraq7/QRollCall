@@ -8,6 +8,7 @@ import courseRoutes from "./modules/courses/courses.routes.js";
 import sessionRoutes from "./modules/sessions/sessions.routes.js";
 import deviceRoutes from "./modules/device/device.routes.js";
 import attendanceRoutes from "./modules/attendance/attendance.routes.js";
+import reportsRoutes from "./modules/reports/reports.routes.js";
 
 const app = express();
 
@@ -46,6 +47,7 @@ app.use("/api/v1/sessions", sessionRoutes);
 app.use("/api/v1/device", deviceRoutes);
 app.use("/api/v1/attendance/mark", markLimiter);
 app.use("/api/v1/attendance", attendanceRoutes);
+app.use("/api/v1/reports", reportsRoutes);
 
 // Health check
 app.get("/health", (req, res) => {
