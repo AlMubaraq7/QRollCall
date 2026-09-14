@@ -16,7 +16,7 @@ const app = express();
 app.use(helmet());
 app.use(
   cors({
-    origin: "https://q-roll-call-six.vercel.app/", // your frontend URL
+    origin: "https://q-roll-call-six.vercel.app", // your frontend URL
     // origin: true,
     credentials: true,
   }),
