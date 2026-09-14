@@ -1,14 +1,102 @@
 import pool from "../../config/database.js";
 import * as sessionsService from "../sessions/sessions.service.js";
 
+// Haversine formula — straight-line distance between two lat/long points, in meters
+function distanceInMeters(lat1, lon1, lat2, lon2) {
+  const R = 6371000; // Earth's radius in meters
+  const toRad = (deg) => (deg * Math.PI) / 180;
+
+  const dLat = toRad(lat2 - lat1);
+  const dLon = toRad(lon2 - lon1);
+
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) ** 2;
+
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return R * c;
+}
+
+// export async function markAttendance({
+//   sessionId,
+//   token,
+//   studentId,
+//   ipAddress,
+//   userAgent,
+// }) {
+//   // 1. Validate the token against the session (throws SESSION_NOT_FOUND, SESSION_NOT_ACTIVE, or INVALID_TOKEN)
+//   let session;
+//   try {
+//     session = await sessionsService.validateToken(sessionId, token);
+//   } catch (err) {
+//     await logAudit({
+//       sessionId,
+//       studentId,
+//       token,
+//       outcome: err.message,
+//       ipAddress,
+//     });
+//     throw err;
+//   }
+
+//   // 2. Confirm the student is enrolled in this session's course
+//   const enrollment = await pool.query(
+//     "SELECT id FROM course_enrollments WHERE course_id = $1 AND student_id = $2",
+//     [session.course_id, studentId],
+//   );
+//   if (enrollment.rows.length === 0) {
+//     await logAudit({
+//       sessionId,
+//       studentId,
+//       token,
+//       outcome: "NOT_ENROLLED",
+//       ipAddress,
+//     });
+//     throw new Error("NOT_ENROLLED");
+//   }
+
+//   // 3. Attempt to insert — the UNIQUE constraint on (session_id, student_id) catches duplicates
+//   try {
+//     const result = await pool.query(
+//       `INSERT INTO attendance_records (session_id, student_id, ip_address, user_agent)
+//        VALUES ($1, $2, $3, $4)
+//        RETURNING id, session_id, student_id, status, scanned_at`,
+//       [sessionId, studentId, ipAddress, userAgent],
+//     );
+
+//     await logAudit({
+//       sessionId,
+//       studentId,
+//       token,
+//       outcome: "SUCCESS",
+//       ipAddress,
+//     });
+
+//     return result.rows[0];
+//   } catch (err) {
+//     if (err.code === "23505") {
+//       // PostgreSQL unique_violation error code
+//       await logAudit({
+//         sessionId,
+//         studentId,
+//         token,
+//         outcome: "DUPLICATE",
+//         ipAddress,
+//       });
+//       throw new Error("ALREADY_MARKED");
+//     }
+//     throw err;
+//   }
+// }
 export async function markAttendance({
   sessionId,
   token,
   studentId,
   ipAddress,
   userAgent,
+  latitude,
+  longitude,
 }) {
-  // 1. Validate the token against the session (throws SESSION_NOT_FOUND, SESSION_NOT_ACTIVE, or INVALID_TOKEN)
   let session;
   try {
     session = await sessionsService.validateToken(sessionId, token);
@@ -23,7 +111,6 @@ export async function markAttendance({
     throw err;
   }
 
-  // 2. Confirm the student is enrolled in this session's course
   const enrollment = await pool.query(
     "SELECT id FROM course_enrollments WHERE course_id = $1 AND student_id = $2",
     [session.course_id, studentId],
@@ -39,7 +126,38 @@ export async function markAttendance({
     throw new Error("NOT_ENROLLED");
   }
 
-  // 3. Attempt to insert — the UNIQUE constraint on (session_id, student_id) catches duplicates
+  // Geofence check — only enforced if the lecturer set a classroom location for this session
+  if (session.latitude != null && session.longitude != null) {
+    if (latitude == null || longitude == null) {
+      await logAudit({
+        sessionId,
+        studentId,
+        token,
+        outcome: "LOCATION_REQUIRED",
+        ipAddress,
+      });
+      throw new Error("LOCATION_REQUIRED");
+    }
+
+    const distance = distanceInMeters(
+      session.latitude,
+      session.longitude,
+      latitude,
+      longitude,
+    );
+
+    if (distance > session.radius_meters) {
+      await logAudit({
+        sessionId,
+        studentId,
+        token,
+        outcome: "OUT_OF_RANGE",
+        ipAddress,
+      });
+      throw new Error("OUT_OF_RANGE");
+    }
+  }
+
   try {
     const result = await pool.query(
       `INSERT INTO attendance_records (session_id, student_id, ip_address, user_agent)
@@ -59,7 +177,6 @@ export async function markAttendance({
     return result.rows[0];
   } catch (err) {
     if (err.code === "23505") {
-      // PostgreSQL unique_violation error code
       await logAudit({
         sessionId,
         studentId,
@@ -72,7 +189,6 @@ export async function markAttendance({
     throw err;
   }
 }
-
 export async function getStudentHistory(studentId) {
   const result = await pool.query(
     `SELECT

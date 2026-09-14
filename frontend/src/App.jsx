@@ -5,6 +5,9 @@ import Login from "./pages/auth/Login";
 import LecturerDashboard from "./pages/lecturer/Dashboard";
 import CourseDetail from "./pages/lecturer/CourseDetail";
 import SessionDetail from "./pages/lecturer/SessionDetail";
+import AuditLog from "./pages/lecturer/AuditLog";
+import Scan from "./pages/student/Scan";
+import History from "./pages/student/History";
 
 function App() {
   return (
@@ -13,6 +16,7 @@ function App() {
         <Routes>
           <Route path="/login" element={<Login />} />
 
+          {/* Lecturer routes */}
           <Route
             path="/lecturer/dashboard"
             element={
@@ -34,6 +38,32 @@ function App() {
             element={
               <ProtectedRoute role="lecturer">
                 <SessionDetail />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/lecturer/sessions/:sessionId/audit"
+            element={
+              <ProtectedRoute role="lecturer">
+                <AuditLog />
+              </ProtectedRoute>
+            }
+          />
+
+          {/* Student routes */}
+          <Route
+            path="/student/scan"
+            element={
+              <ProtectedRoute role="student">
+                <Scan />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/student/history"
+            element={
+              <ProtectedRoute role="student">
+                <History />
               </ProtectedRoute>
             }
           />

@@ -1,11 +1,39 @@
 import { generate, verify, generateSecret } from "otplib";
 import pool from "../../config/database.js";
 
+// export async function createSession({
+//   courseId,
+//   lecturerId,
+//   title,
+//   tokenInterval,
+// }) {
+//   const assigned = await pool.query(
+//     "SELECT id FROM course_lecturers WHERE course_id = $1 AND lecturer_id = $2",
+//     [courseId, lecturerId],
+//   );
+//   if (assigned.rows.length === 0) {
+//     throw new Error("NOT_ASSIGNED_TO_COURSE");
+//   }
+
+//   const secret = generateSecret(); // base32 string, uses default bundled plugins
+
+//   const result = await pool.query(
+//     `INSERT INTO sessions (course_id, lecturer_id, title, token_secret, token_interval)
+//      VALUES ($1, $2, $3, $4, $5)
+//      RETURNING id, course_id, lecturer_id, title, status, token_interval, started_at`,
+//     [courseId, lecturerId, title || null, secret, tokenInterval || 30],
+//   );
+
+//   return result.rows[0];
+// }
 export async function createSession({
   courseId,
   lecturerId,
   title,
   tokenInterval,
+  latitude,
+  longitude,
+  radiusMeters,
 }) {
   const assigned = await pool.query(
     "SELECT id FROM course_lecturers WHERE course_id = $1 AND lecturer_id = $2",
@@ -15,13 +43,24 @@ export async function createSession({
     throw new Error("NOT_ASSIGNED_TO_COURSE");
   }
 
-  const secret = generateSecret(); // base32 string, uses default bundled plugins
+  const secret = generateSecret();
 
   const result = await pool.query(
-    `INSERT INTO sessions (course_id, lecturer_id, title, token_secret, token_interval)
-     VALUES ($1, $2, $3, $4, $5)
-     RETURNING id, course_id, lecturer_id, title, status, token_interval, started_at`,
-    [courseId, lecturerId, title || null, secret, tokenInterval || 30],
+    `INSERT INTO sessions
+       (course_id, lecturer_id, title, token_secret, token_interval, latitude, longitude, radius_meters)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+     RETURNING id, course_id, lecturer_id, title, status, token_interval,
+               latitude, longitude, radius_meters, started_at`,
+    [
+      courseId,
+      lecturerId,
+      title || null,
+      secret,
+      tokenInterval || 30,
+      latitude ?? null,
+      longitude ?? null,
+      radiusMeters || 200,
+    ],
   );
 
   return result.rows[0];
@@ -112,4 +151,18 @@ export async function validateToken(sessionId, token) {
   }
 
   return session;
+}
+
+export async function getActiveSessionForCourse(courseId) {
+  const result = await pool.query(
+    `SELECT * FROM sessions
+     WHERE course_id = $1 AND status = 'active'
+     ORDER BY started_at DESC
+     LIMIT 1`,
+    [courseId],
+  );
+  if (result.rows.length === 0) {
+    throw new Error("NO_ACTIVE_SESSION");
+  }
+  return result.rows[0];
 }

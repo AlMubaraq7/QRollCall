@@ -29,6 +29,7 @@ export async function register(req, res) {
 export async function login(req, res) {
   const parsed = loginSchema.safeParse(req.body);
   if (!parsed.success) {
+    console.log(parsed.error);
     return sendError(res, parsed.error.errors[0].message, 400);
   }
 

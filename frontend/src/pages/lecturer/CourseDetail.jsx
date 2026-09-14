@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { getCourseById } from "../../api/courses";
+import { getCourseById, enrollStudent, removeStudent } from "../../api/courses";
 import { createSession } from "../../api/sessions";
 import LecturerNav from "../../components/layout/LecturerNav";
 
@@ -11,12 +11,48 @@ export default function CourseDetail() {
   const [course, setCourse] = useState(null);
   const [title, setTitle] = useState("");
   const [tokenInterval, setTokenInterval] = useState(30);
+  const [location, setLocation] = useState(null); // { latitude, longitude }
+  const [radiusMeters, setRadiusMeters] = useState(100);
+  const [locating, setLocating] = useState(false);
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState("");
 
-  useEffect(() => {
+  // Enrollment state
+  const [matricInput, setMatricInput] = useState("");
+  const [enrolling, setEnrolling] = useState(false);
+  const [enrollError, setEnrollError] = useState("");
+  const [enrollSuccess, setEnrollSuccess] = useState("");
+  const [removingId, setRemovingId] = useState(null);
+
+  const loadCourse = () => {
     getCourseById(courseId).then(setCourse);
+  };
+
+  useEffect(() => {
+    loadCourse();
   }, [courseId]);
+
+  const handleUseMyLocation = () => {
+    if (!navigator.geolocation) {
+      setError("Geolocation is not supported on this device");
+      return;
+    }
+    setLocating(true);
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        setLocation({
+          latitude: pos.coords.latitude,
+          longitude: pos.coords.longitude,
+        });
+        setLocating(false);
+      },
+      () => {
+        setError("Could not get your location — check browser permissions");
+        setLocating(false);
+      },
+      { timeout: 10000, enableHighAccuracy: true },
+    );
+  };
 
   const handleCreateSession = async (e) => {
     e.preventDefault();
@@ -28,12 +64,47 @@ export default function CourseDetail() {
         courseId,
         title,
         tokenInterval: Number(tokenInterval),
+        latitude: location?.latitude,
+        longitude: location?.longitude,
+        radiusMeters: location ? Number(radiusMeters) : undefined,
       });
       navigate(`/lecturer/sessions/${session.id}`);
     } catch (err) {
       setError(err.response?.data?.error || "Failed to create session");
     } finally {
       setCreating(false);
+    }
+  };
+
+  const handleEnroll = async (e) => {
+    e.preventDefault();
+    setEnrollError("");
+    setEnrollSuccess("");
+
+    if (!matricInput.trim()) return;
+
+    setEnrolling(true);
+    try {
+      await enrollStudent(courseId, matricInput.trim());
+      setEnrollSuccess(`${matricInput.trim()} enrolled successfully`);
+      setMatricInput("");
+      loadCourse(); // refresh the student list
+    } catch (err) {
+      setEnrollError(err.response?.data?.error || "Failed to enroll student");
+    } finally {
+      setEnrolling(false);
+    }
+  };
+
+  const handleRemove = async (studentId) => {
+    setRemovingId(studentId);
+    try {
+      await removeStudent(courseId, studentId);
+      loadCourse();
+    } catch {
+      setEnrollError("Failed to remove student");
+    } finally {
+      setRemovingId(null);
     }
   };
 
@@ -47,24 +118,27 @@ export default function CourseDetail() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50">
+    <div className="min-h-screen bg-paper">
       <LecturerNav />
 
-      <div className="max-w-2xl mx-auto p-4 sm:p-8">
-        <h1 className="text-2xl font-bold text-gray-900 mb-1">
-          {course.course_code} — {course.course_name}
-        </h1>
-        <p className="text-gray-600 mb-6">
-          {course.students?.length || 0} students enrolled
-        </p>
+      <div className="max-w-2xl mx-auto p-4 sm:p-8 space-y-6">
+        <div>
+          <h1 className="font-display text-3xl text-ink mb-1">
+            {course.course_code} — {course.course_name}
+          </h1>
+          <p className="text-gray-600">
+            {course.students?.length || 0} students enrolled
+          </p>
+        </div>
 
+        {/* Start session */}
         <div className="bg-white border border-gray-200 rounded-lg p-6">
-          <h2 className="font-semibold text-gray-900 mb-4">
+          <h2 className="font-semibold text-ink mb-4">
             Start a new attendance session
           </h2>
 
           {error && (
-            <div className="bg-red-50 text-red-700 text-sm p-3 rounded mb-4 font-medium">
+            <div className="bg-danger-bg text-danger text-sm p-3 rounded mb-4 font-medium">
               {error}
             </div>
           )}
@@ -78,7 +152,7 @@ export default function CourseDetail() {
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               placeholder="e.g. Week 3 Lecture"
-              className="w-full border border-gray-300 rounded px-3 py-2 mb-4 text-gray-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+              className="w-full border border-gray-300 rounded px-3 py-2 mb-4 text-ink focus:outline-none focus:ring-2 focus:ring-gold/40 focus:border-gold"
             />
 
             <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -90,17 +164,125 @@ export default function CourseDetail() {
               onChange={(e) => setTokenInterval(e.target.value)}
               min={10}
               max={120}
-              className="w-full border border-gray-300 rounded px-3 py-2 mb-6 text-gray-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+              className="w-full border border-gray-300 rounded px-3 py-2 mb-4 text-ink focus:outline-none focus:ring-2 focus:ring-gold/40 focus:border-gold"
             />
+
+            <div className="mb-6 border-t border-gray-100 pt-4">
+              <div className="flex items-center justify-between mb-2">
+                <label className="text-sm font-medium text-gray-700">
+                  Restrict to classroom location (optional)
+                </label>
+                <button
+                  type="button"
+                  onClick={handleUseMyLocation}
+                  disabled={locating}
+                  className="text-xs font-medium text-gold hover:text-gold-light disabled:opacity-50"
+                >
+                  {locating ? "Getting location..." : "Use my current location"}
+                </button>
+              </div>
+
+              {location ? (
+                <div className="bg-success-bg border border-success/20 rounded p-3 text-sm">
+                  <p className="text-success font-medium mb-2">
+                    Location set — students must be nearby to mark attendance
+                  </p>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">
+                    Allowed radius (meters)
+                  </label>
+                  <input
+                    type="number"
+                    value={radiusMeters}
+                    onChange={(e) => setRadiusMeters(e.target.value)}
+                    min={10}
+                    max={2000}
+                    className="w-full border border-gray-300 rounded px-3 py-1.5 text-ink text-sm"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setLocation(null)}
+                    className="text-xs text-danger hover:underline mt-2"
+                  >
+                    Remove location restriction
+                  </button>
+                </div>
+              ) : (
+                <p className="text-xs text-gray-500">
+                  No location set — students can mark attendance from anywhere.
+                </p>
+              )}
+            </div>
 
             <button
               type="submit"
               disabled={creating}
-              className="w-full bg-indigo-600 text-white font-medium py-2 rounded hover:bg-indigo-700 disabled:opacity-50 transition-colors"
+              className="w-full bg-ink text-white font-medium py-2.5 rounded hover:bg-ink-light disabled:opacity-50 transition-colors"
             >
-              {creating ? "Starting session..." : "Start Session"}
+              {creating ? "Starting session..." : "Start session"}
             </button>
           </form>
+        </div>
+
+        {/* Manage students */}
+        <div className="bg-white border border-gray-200 rounded-lg p-6">
+          <h2 className="font-semibold text-ink mb-4">Manage students</h2>
+
+          {enrollError && (
+            <div className="bg-danger-bg text-danger text-sm p-3 rounded mb-4 font-medium">
+              {enrollError}
+            </div>
+          )}
+          {enrollSuccess && (
+            <div className="bg-success-bg text-success text-sm p-3 rounded mb-4 font-medium">
+              {enrollSuccess}
+            </div>
+          )}
+
+          <form onSubmit={handleEnroll} className="flex gap-2 mb-6">
+            <input
+              type="text"
+              value={matricInput}
+              onChange={(e) => setMatricInput(e.target.value)}
+              placeholder="e.g. CSC/2019/031"
+              className="flex-1 border border-gray-300 rounded px-3 py-2 text-ink focus:outline-none focus:ring-2 focus:ring-gold/40 focus:border-gold"
+            />
+            <button
+              type="submit"
+              disabled={enrolling}
+              className="bg-ink text-white font-medium px-4 py-2 rounded hover:bg-ink-light disabled:opacity-50 transition-colors text-sm shrink-0"
+            >
+              {enrolling ? "Enrolling..." : "Enroll"}
+            </button>
+          </form>
+
+          {course.students?.length === 0 ? (
+            <p className="text-gray-600 text-sm">No students enrolled yet.</p>
+          ) : (
+            <div className="divide-y divide-gray-100">
+              {course.students.map((student) => (
+                <div
+                  key={student.id}
+                  className="py-3 flex justify-between items-center"
+                >
+                  <div>
+                    <p className="text-ink font-medium text-sm">
+                      {student.full_name}
+                    </p>
+                    <p className="text-gray-500 text-xs">
+                      {student.matric_number}
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => handleRemove(student.id)}
+                    disabled={removingId === student.id}
+                    className="text-xs text-danger hover:underline disabled:opacity-50"
+                  >
+                    {removingId === student.id ? "Removing..." : "Remove"}
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       </div>
     </div>

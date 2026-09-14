@@ -26,3 +26,18 @@ export async function heartbeat(req, res) {
     receivedAt: new Date(),
   });
 }
+
+export async function getCurrentSessionForCourse(req, res) {
+  try {
+    const session = await sessionsService.getActiveSessionForCourse(
+      req.params.courseId,
+    );
+    return sendSuccess(res, { sessionId: session.id, title: session.title });
+  } catch (err) {
+    if (err.message === "NO_ACTIVE_SESSION") {
+      return sendError(res, "No active session for this course", 404);
+    }
+    console.error("Get current session error:", err);
+    return sendError(res, "Internal server error", 500);
+  }
+}

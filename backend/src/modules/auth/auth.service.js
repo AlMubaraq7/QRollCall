@@ -56,10 +56,33 @@ export async function registerUser({
   return { user, token };
 }
 
-export async function loginUser({ email, password }) {
-  const result = await pool.query("SELECT * FROM users WHERE email = $1", [
-    email,
-  ]);
+// export async function loginUser({ email, password }) {
+//   const result = await pool.query("SELECT * FROM users WHERE email = $1", [
+//     email,
+//   ]);
+
+//   if (result.rows.length === 0) {
+//     throw new Error("INVALID_CREDENTIALS");
+//   }
+
+//   const user = result.rows[0];
+//   const passwordMatch = await bcrypt.compare(password, user.password_hash);
+
+//   if (!passwordMatch) {
+//     throw new Error("INVALID_CREDENTIALS");
+//   }
+
+//   const token = generateToken(user);
+
+//   // Return user without password hash
+//   const { password_hash, ...safeUser } = user;
+//   return { user: safeUser, token };
+// }
+export async function loginUser({ identifier, password }) {
+  const result = await pool.query(
+    "SELECT * FROM users WHERE email = $1 OR matric_number = $1",
+    [identifier],
+  );
 
   if (result.rows.length === 0) {
     throw new Error("INVALID_CREDENTIALS");
@@ -74,7 +97,6 @@ export async function loginUser({ email, password }) {
 
   const token = generateToken(user);
 
-  // Return user without password hash
   const { password_hash, ...safeUser } = user;
   return { user: safeUser, token };
 }

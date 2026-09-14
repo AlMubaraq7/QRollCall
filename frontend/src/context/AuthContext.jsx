@@ -13,8 +13,8 @@ function getStoredUser() {
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(getStoredUser); // lazy initializer — runs once, no effect needed
 
-  const loginUser = async (email, password) => {
-    const { user, token } = await authApi.login(email, password);
+  const loginUser = async (identifier, password) => {
+    const { user, token } = await authApi.login(identifier, password);
     localStorage.setItem("token", token);
     localStorage.setItem("user", JSON.stringify(user));
     setUser(user);

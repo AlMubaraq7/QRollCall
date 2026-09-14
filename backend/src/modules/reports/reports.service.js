@@ -74,3 +74,22 @@ export async function exportSessionAttendanceCsv(sessionId) {
   const csv = await parser.parse(result.rows).promise();
   return csv;
 }
+
+export async function getSessionAuditLog(sessionId) {
+  const result = await pool.query(
+    `SELECT
+       al.id,
+       al.outcome,
+       al.token_used,
+       al.ip_address,
+       al.logged_at,
+       u.full_name,
+       u.matric_number
+     FROM qr_audit_log al
+     LEFT JOIN users u ON u.id = al.attempted_by
+     WHERE al.session_id = $1
+     ORDER BY al.logged_at DESC`,
+    [sessionId],
+  );
+  return result.rows;
+}

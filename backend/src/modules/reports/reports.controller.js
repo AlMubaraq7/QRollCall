@@ -54,3 +54,15 @@ export async function exportSessionCsv(req, res) {
     return sendError(res, "Internal server error", 500);
   }
 }
+
+export async function getSessionAudit(req, res) {
+  try {
+    const auditLog = await reportsService.getSessionAuditLog(
+      req.params.sessionId,
+    );
+    return sendSuccess(res, { auditLog });
+  } catch (err) {
+    console.error("Get session audit error:", err);
+    return sendError(res, "Internal server error", 500);
+  }
+}
