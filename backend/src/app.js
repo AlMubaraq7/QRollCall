@@ -16,8 +16,8 @@ const app = express();
 app.use(helmet());
 app.use(
   cors({
-    // origin: "http://localhost:5173", // your frontend URL
-    origin: true,
+    origin: "https://q-roll-call-six.vercel.app/", // your frontend URL
+    // origin: true,
     credentials: true,
   }),
 );
