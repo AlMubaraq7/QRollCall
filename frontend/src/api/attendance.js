@@ -12,3 +12,6 @@ export const markAttendance = ({ sessionId, token, latitude, longitude }) =>
 
 export const getMyHistory = () =>
   api.get("/attendance/history").then((res) => res.data.data.history);
+
+export const getCourseSummary = (courseId) =>
+  api.get(`/attendance/summary/${courseId}`);

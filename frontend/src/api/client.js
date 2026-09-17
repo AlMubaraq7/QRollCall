@@ -1,4 +1,13 @@
 import axios from "axios";
+// const api = axios.create({
+//   baseURL: "http://localhost:5000/api/v1",
+// });
+// const API_PORT = 5000;
+// const apiHost = window.location.hostname; // matches whatever host loaded the page
+
+// const api = axios.create({
+//   baseURL: `http://${apiHost}:${API_PORT}/api/v1`,
+// });
 
 const api = axios.create({
   baseURL: import.meta.env.VITE_API_URL || "/api/v1",

@@ -1,15 +1,34 @@
 import { AsyncParser } from "@json2csv/node";
 import pool from "../../config/database.js";
 
+// export async function getCourseReport(courseId) {
+//   const result = await pool.query(
+//     `SELECT
+//        s.id AS session_id,
+//        s.title,
+//        s.status,
+//        s.started_at,
+//        s.ended_at,
+//        COUNT(ar.id) AS attendee_count
+//      FROM sessions s
+//      LEFT JOIN attendance_records ar ON ar.session_id = s.id
+//      WHERE s.course_id = $1
+//      GROUP BY s.id
+//      ORDER BY s.started_at DESC`,
+//     [courseId],
+//   );
+//   return result.rows;
+// }
 export async function getCourseReport(courseId) {
-  const result = await pool.query(
-    `SELECT
-       s.id AS session_id,
-       s.title,
-       s.status,
-       s.started_at,
-       s.ended_at,
-       COUNT(ar.id) AS attendee_count
+  const enrolledResult = await pool.query(
+    "SELECT COUNT(*) AS total FROM course_enrollments WHERE course_id = $1",
+    [courseId],
+  );
+  const totalEnrolled = parseInt(enrolledResult.rows[0].total, 10);
+
+  const sessionsResult = await pool.query(
+    `SELECT s.id AS session_id, s.title, s.status, s.started_at, s.ended_at,
+            COUNT(ar.id) AS attendee_count
      FROM sessions s
      LEFT JOIN attendance_records ar ON ar.session_id = s.id
      WHERE s.course_id = $1
@@ -17,9 +36,9 @@ export async function getCourseReport(courseId) {
      ORDER BY s.started_at DESC`,
     [courseId],
   );
-  return result.rows;
-}
 
+  return { totalEnrolled, sessions: sessionsResult.rows };
+}
 export async function getStudentRecordByMatric(matricNumber) {
   const student = await pool.query(
     "SELECT id, full_name, matric_number FROM users WHERE matric_number = $1 AND role = $2",

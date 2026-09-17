@@ -17,10 +17,15 @@ app.use(helmet());
 app.use(
   cors({
     origin: "https://q-roll-call-six.vercel.app", // your frontend URL
-    // origin: true,
     credentials: true,
   }),
 );
+// app.use(
+//   cors({
+//     origin: true,
+//     credentials: true,
+//   }),
+// );
 
 // Body parser
 app.use(express.json());

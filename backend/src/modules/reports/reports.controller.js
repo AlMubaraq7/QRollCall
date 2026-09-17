@@ -1,10 +1,19 @@
 import * as reportsService from "./reports.service.js";
 import { sendSuccess, sendError } from "../../utils/response.js";
 
+// export async function getCourseReport(req, res) {
+//   try {
+//     const report = await reportsService.getCourseReport(req.params.courseId);
+//     return sendSuccess(res, { report });
+//   } catch (err) {
+//     console.error("Get course report error:", err);
+//     return sendError(res, "Internal server error", 500);
+//   }
+// }
 export async function getCourseReport(req, res) {
   try {
     const report = await reportsService.getCourseReport(req.params.courseId);
-    return sendSuccess(res, { report });
+    return sendSuccess(res, report); // { totalEnrolled, sessions }
   } catch (err) {
     console.error("Get course report error:", err);
     return sendError(res, "Internal server error", 500);
