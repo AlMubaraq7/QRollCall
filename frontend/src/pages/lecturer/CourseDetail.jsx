@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, Link } from "react-router-dom";
 import { getCourseById, enrollStudent, removeStudent } from "../../api/courses";
 import { createSession } from "../../api/sessions";
 import LecturerNav from "../../components/layout/LecturerNav";
@@ -11,13 +11,15 @@ export default function CourseDetail() {
   const [course, setCourse] = useState(null);
   const [title, setTitle] = useState("");
   const [tokenInterval, setTokenInterval] = useState(30);
-  const [location, setLocation] = useState(null); // { latitude, longitude }
+  const [location, setLocation] = useState(null);
   const [radiusMeters, setRadiusMeters] = useState(100);
   const [locating, setLocating] = useState(false);
+  const [manualLat, setManualLat] = useState("");
+  const [manualLng, setManualLng] = useState("");
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState("");
+  const [idCopied, setIdCopied] = useState(false);
 
-  // Enrollment state
   const [matricInput, setMatricInput] = useState("");
   const [enrolling, setEnrolling] = useState(false);
   const [enrollError, setEnrollError] = useState("");
@@ -31,6 +33,16 @@ export default function CourseDetail() {
   useEffect(() => {
     loadCourse();
   }, [courseId]);
+
+  const handleCopyId = async () => {
+    try {
+      await navigator.clipboard.writeText(courseId);
+      setIdCopied(true);
+      setTimeout(() => setIdCopied(false), 2000);
+    } catch {
+      setError("Could not copy — select and copy the ID manually");
+    }
+  };
 
   const handleUseMyLocation = () => {
     if (!navigator.geolocation) {
@@ -52,6 +64,17 @@ export default function CourseDetail() {
       },
       { timeout: 10000, enableHighAccuracy: true },
     );
+  };
+
+  const handleUseManualLocation = () => {
+    const lat = parseFloat(manualLat);
+    const lng = parseFloat(manualLng);
+    if (Number.isNaN(lat) || Number.isNaN(lng)) {
+      setError("Enter valid numeric latitude and longitude");
+      return;
+    }
+    setError("");
+    setLocation({ latitude: lat, longitude: lng });
   };
 
   const handleCreateSession = async (e) => {
@@ -88,7 +111,7 @@ export default function CourseDetail() {
       await enrollStudent(courseId, matricInput.trim());
       setEnrollSuccess(`${matricInput.trim()} enrolled successfully`);
       setMatricInput("");
-      loadCourse(); // refresh the student list
+      loadCourse();
     } catch (err) {
       setEnrollError(err.response?.data?.error || "Failed to enroll student");
     } finally {
@@ -110,7 +133,7 @@ export default function CourseDetail() {
 
   if (!course) {
     return (
-      <div className="min-h-screen bg-slate-50">
+      <div className="min-h-screen bg-paper">
         <LecturerNav />
         <p className="p-8 text-gray-600">Loading course...</p>
       </div>
@@ -123,12 +146,33 @@ export default function CourseDetail() {
 
       <div className="max-w-2xl mx-auto p-4 sm:p-8 space-y-6">
         <div>
-          <h1 className="font-display text-3xl text-ink mb-1">
-            {course.course_code} — {course.course_name}
-          </h1>
-          <p className="text-gray-600">
+          <div className="flex items-center justify-between flex-wrap gap-2 mb-1">
+            <h1 className="font-display text-3xl text-ink">
+              {course.course_code} — {course.course_name}
+            </h1>
+            <Link
+              to={`/lecturer/courses/${courseId}/history`}
+              className="text-sm text-gray-500 hover:text-ink font-medium transition-colors"
+            >
+              Session history →
+            </Link>
+          </div>
+          <p className="text-gray-600 mb-2">
             {course.students?.length || 0} students enrolled
           </p>
+
+          <div className="flex items-center gap-2 bg-white border border-gray-200 rounded px-3 py-2 text-xs">
+            <span className="text-gray-500">Course ID (for ESP32 config):</span>
+            <code className="text-ink font-mono flex-1 truncate">
+              {courseId}
+            </code>
+            <button
+              onClick={handleCopyId}
+              className="text-gold hover:text-gold-light font-medium shrink-0"
+            >
+              {idCopied ? "Copied!" : "Copy"}
+            </button>
+          </div>
         </div>
 
         {/* Start session */}
@@ -168,10 +212,11 @@ export default function CourseDetail() {
             />
 
             <div className="mb-6 border-t border-gray-100 pt-4">
-              <div className="flex items-center justify-between mb-2">
-                <label className="text-sm font-medium text-gray-700">
-                  Restrict to classroom location (optional)
-                </label>
+              <label className="text-sm font-medium text-gray-700 block mb-2">
+                Restrict to classroom location (optional)
+              </label>
+
+              <div className="flex gap-2 mb-3">
                 <button
                   type="button"
                   onClick={handleUseMyLocation}
@@ -182,10 +227,41 @@ export default function CourseDetail() {
                 </button>
               </div>
 
+              <details className="mb-3">
+                <summary className="text-xs text-gray-500 cursor-pointer hover:text-ink">
+                  Or enter coordinates manually (for testing)
+                </summary>
+                <div className="flex gap-2 mt-2">
+                  <input
+                    type="text"
+                    value={manualLat}
+                    onChange={(e) => setManualLat(e.target.value)}
+                    placeholder="Latitude"
+                    className="flex-1 border border-gray-300 rounded px-2 py-1.5 text-sm text-ink"
+                  />
+                  <input
+                    type="text"
+                    value={manualLng}
+                    onChange={(e) => setManualLng(e.target.value)}
+                    placeholder="Longitude"
+                    className="flex-1 border border-gray-300 rounded px-2 py-1.5 text-sm text-ink"
+                  />
+                  <button
+                    type="button"
+                    onClick={handleUseManualLocation}
+                    className="text-xs font-medium bg-gray-100 text-ink px-3 py-1.5 rounded hover:bg-gray-200 shrink-0"
+                  >
+                    Set
+                  </button>
+                </div>
+              </details>
+
               {location ? (
                 <div className="bg-success-bg border border-success/20 rounded p-3 text-sm">
                   <p className="text-success font-medium mb-2">
-                    Location set — students must be nearby to mark attendance
+                    Location set ({location.latitude.toFixed(5)},{" "}
+                    {location.longitude.toFixed(5)}) — students must be nearby
+                    to mark attendance
                   </p>
                   <label className="block text-xs font-medium text-gray-700 mb-1">
                     Allowed radius (meters)

@@ -8,6 +8,7 @@ import SessionDetail from "./pages/lecturer/SessionDetail";
 import AuditLog from "./pages/lecturer/AuditLog";
 import Scan from "./pages/student/Scan";
 import History from "./pages/student/History";
+import CourseHistory from "./pages/lecturer/CourseHistory";
 
 function App() {
   return (
@@ -15,7 +16,6 @@ function App() {
       <BrowserRouter>
         <Routes>
           <Route path="/login" element={<Login />} />
-
           {/* Lecturer routes */}
           <Route
             path="/lecturer/dashboard"
@@ -50,6 +50,14 @@ function App() {
             }
           />
 
+          <Route
+            path="/lecturer/courses/:courseId/history"
+            element={
+              <ProtectedRoute role="lecturer">
+                <CourseHistory />
+              </ProtectedRoute>
+            }
+          />
           {/* Student routes */}
           <Route
             path="/student/scan"
@@ -67,7 +75,6 @@ function App() {
               </ProtectedRoute>
             }
           />
-
           <Route path="/" element={<Navigate to="/login" replace />} />
         </Routes>
       </BrowserRouter>

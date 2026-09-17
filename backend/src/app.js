@@ -14,10 +14,16 @@ const app = express();
 
 // Security middleware
 app.use(helmet());
+// app.use(
+//   cors({
+//     origin: "https://q-roll-call-six.vercel.app", // your frontend URL
+//     // origin: true,
+//     credentials: true,
+//   }),
+// );
 app.use(
   cors({
-    origin: "https://q-roll-call-six.vercel.app", // your frontend URL
-    // origin: true,
+    origin: true,
     credentials: true,
   }),
 );

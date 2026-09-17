@@ -4,3 +4,5 @@ export const getSessionAudit = (sessionId) =>
   api
     .get(`/reports/session/${sessionId}/audit`)
     .then((res) => res.data.data.auditLog);
+export const getCourseReport = (courseId) =>
+  api.get(`/reports/course/${courseId}`).then((res) => res.data.data);
